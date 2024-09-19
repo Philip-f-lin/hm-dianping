@@ -17,11 +17,10 @@ public class LoginInterceptor implements HandlerInterceptor {
         Object user = session.getAttribute("user");
         //3. 判斷使用者是否存在
         if (user == null){
-            //4. 不存在，攔截
+            //4. 不存在，攔截，返回 401 狀態碼
             response.setStatus(401);
             return false;
         }
-
         //5. 存在 儲存使用者資訊到ThreadLocal
         UserHolder.saveUser((UserDTO) user);
         //6. 放行
