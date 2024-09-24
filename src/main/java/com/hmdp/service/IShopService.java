@@ -8,4 +8,6 @@ public interface IShopService extends IService<Shop> {
 
 
     Result queryById(Long id);
+
+    Result update(Shop shop);
 }
