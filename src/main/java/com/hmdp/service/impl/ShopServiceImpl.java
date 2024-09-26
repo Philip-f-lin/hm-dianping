@@ -18,8 +18,7 @@ import javax.annotation.Resource;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
+import static com.hmdp.utils.RedisConstants.*;
 
 @Service
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
@@ -38,10 +37,19 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             Shop shop = BeanUtil.toBean(shopJson, Shop.class);
             return Result.ok(shop);
         }
+        // 判斷命中的是否是空值
+        if (shopJson != null){
+            // 返回一個錯誤訊息
+            return Result.fail("商店不存在");
+        }
+
         // 4. 不存在，根據 id 查詢資料庫
         Shop shop = getById(id);
+        // 5. 不存在，返回錯誤
         if (shop == null){
-            // 5. 不存在返回錯誤
+            // 將空值寫入 redis
+            stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
+            // 返回錯誤訊息
             return Result.fail("商店不存在");
         }
         // 6. 存在，寫入 redis
