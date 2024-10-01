@@ -34,40 +34,40 @@ public class CacheClient {
     }
 
     public void setWithLogicalExpire(String key, Object value, Long time, TimeUnit unit) {
-        // 设置逻辑过期
+        // 設定邏輯過期
         RedisData redisData = new RedisData();
         redisData.setData(value);
         redisData.setExpireTime(LocalDateTime.now().plusSeconds(unit.toSeconds(time)));
-        // 写入Redis
+        // 寫入 Redis
         stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(redisData));
     }
 
     public <R,ID> R queryWithPassThrough(
             String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit){
         String key = keyPrefix + id;
-        // 1.从redis查询商铺缓存
+        // 1.從 redis 查詢商鋪緩存
         String json = stringRedisTemplate.opsForValue().get(key);
-        // 2.判断是否存在
+        // 2.判斷是否存在
         if (StrUtil.isNotBlank(json)) {
             // 3.存在，直接返回
             return JSONUtil.toBean(json, type);
         }
-        // 判断命中的是否是空值
+        // 判斷命中的是否為空值
         if (json != null) {
-            // 返回一个错误信息
+            // 回傳一個錯誤訊息
             return null;
         }
 
-        // 4.不存在，根据id查询数据库
+        // 4.不存在，依 id 查詢資料庫
         R r = dbFallback.apply(id);
-        // 5.不存在，返回错误
+        // 5.不存在，回傳錯誤
         if (r == null) {
-            // 将空值写入redis
+            // 將空值寫入 redis
             stringRedisTemplate.opsForValue().set(key, "", CACHE_NULL_TTL, TimeUnit.MINUTES);
-            // 返回错误信息
+            // 傳回錯誤訊息
             return null;
         }
-        // 6.存在，写入redis
+        // 6.存在，寫入 redis
         this.set(key, r, time, unit);
         return r;
     }
@@ -75,45 +75,45 @@ public class CacheClient {
     public <R, ID> R queryWithLogicalExpire(
             String keyPrefix, ID id, Class<R> type, Function<ID, R> dbFallback, Long time, TimeUnit unit) {
         String key = keyPrefix + id;
-        // 1.从redis查询商铺缓存
+        // 1.從 redis 查詢商舖緩存
         String json = stringRedisTemplate.opsForValue().get(key);
-        // 2.判断是否存在
+        // 2.判斷是否存在
         if (StrUtil.isBlank(json)) {
             // 3.存在，直接返回
             return null;
         }
-        // 4.命中，需要先把json反序列化为对象
+        // 4.命中，需要先把 json 反序列化為對象
         RedisData redisData = JSONUtil.toBean(json, RedisData.class);
         R r = JSONUtil.toBean((JSONObject) redisData.getData(), type);
         LocalDateTime expireTime = redisData.getExpireTime();
-        // 5.判断是否过期
+        // 5.判斷是否過期
         if(expireTime.isAfter(LocalDateTime.now())) {
-            // 5.1.未过期，直接返回店铺信息
+            // 5.1.未過期，直接返回店家資訊
             return r;
         }
-        // 5.2.已过期，需要缓存重建
-        // 6.缓存重建
-        // 6.1.获取互斥锁
+        // 5.2.已過期，需要快取重建
+        // 6.快取重建
+        // 6.1.取得互斥鎖
         String lockKey = LOCK_SHOP_KEY + id;
         boolean isLock = tryLock(lockKey);
-        // 6.2.判断是否获取锁成功
+        // 6.2.判斷是否取得鎖成功
         if (isLock){
-            // 6.3.成功，开启独立线程，实现缓存重建
+            // 6.3.成功，開啟獨立線程，實現緩存重建
             CACHE_REBUILD_EXECUTOR.submit(() -> {
                 try {
-                    // 查询数据库
+                    // 查詢資料庫
                     R newR = dbFallback.apply(id);
-                    // 重建缓存
+                    // 重建緩存
                     this.setWithLogicalExpire(key, newR, time, unit);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }finally {
-                    // 释放锁
+                    // 釋放鎖
                     unlock(lockKey);
                 }
             });
         }
-        // 6.4.返回过期的商铺信息
+        // 6.4.返回過期的商舖資訊
         return r;
     }
 
