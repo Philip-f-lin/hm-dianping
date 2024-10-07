@@ -17,6 +17,11 @@ public class MvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // token 刷新攔截器
+        registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate))
+                .addPathPatterns("/**")
+                .order(0);
+
         // 登入攔截器
         registry.addInterceptor(new LoginInterceptor())
                 .excludePathPatterns(
@@ -28,7 +33,5 @@ public class MvcConfig implements WebMvcConfigurer {
                         "/user/code",
                         "/user/login"
                 ).order(1);
-        // token 刷新攔截器
-        registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
     }
 }
