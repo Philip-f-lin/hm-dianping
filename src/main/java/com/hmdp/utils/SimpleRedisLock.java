@@ -30,31 +30,34 @@ public class SimpleRedisLock implements ILock {
     @Override
     public boolean tryLock(long timeoutSec) {
         // 取得線程標示
-        String threadId = ID_PREFIX + Thread.currentThread().getId();
+        long threadId = Thread.currentThread().getId();
         // 取得鎖
         Boolean success = stringRedisTemplate.opsForValue()
-                .setIfAbsent(KEY_PREFIX + name, threadId, timeoutSec, TimeUnit.SECONDS);
+                .setIfAbsent(KEY_PREFIX + name, threadId + "", timeoutSec, TimeUnit.SECONDS);
+        // Boolean 是包裝類，返回值可能為 null，直接比較可能導致空指針異常
+        // 因此使用 Boolean.TRUE.equals(success) 來避免自動拆箱問題
         return Boolean.TRUE.equals(success);
     }
 
-    @Override
+    /*@Override
     public void unlock() {
         // 呼叫lua腳本
         stringRedisTemplate.execute(
                 UNLOCK_SCRIPT,
                 Collections.singletonList(KEY_PREFIX + name),
                 ID_PREFIX + Thread.currentThread().getId());
-    }
-    /*@Override
+    }*/
+    @Override
     public void unlock() {
-        // 取得線程標示
+        // 釋放鎖
+        stringRedisTemplate.delete(KEY_PREFIX + name);
+        /*// 取得線程標示
         String threadId = ID_PREFIX + Thread.currentThread().getId();
         // 取得鎖中的標示
         String id = stringRedisTemplate.opsForValue().get(KEY_PREFIX + name);
         // 判斷標示是否一致
         if(threadId.equals(id)) {
-            // 釋放鎖
             stringRedisTemplate.delete(KEY_PREFIX + name);
-        }
-    }*/
+        }*/
+    }
 }
