@@ -39,15 +39,16 @@ public class SimpleRedisLock implements ILock {
         return Boolean.TRUE.equals(success);
     }
 
-    /*@Override
+    @Override
     public void unlock() {
         // 呼叫lua腳本
         stringRedisTemplate.execute(
                 UNLOCK_SCRIPT,
                 Collections.singletonList(KEY_PREFIX + name),
                 ID_PREFIX + Thread.currentThread().getId());
-    }*/
-    @Override
+    }
+
+    /*@Override
     public void unlock() {
         // 取得線程標示
         String threadId = ID_PREFIX + Thread.currentThread().getId();
@@ -58,5 +59,5 @@ public class SimpleRedisLock implements ILock {
             // 釋放鎖
             stringRedisTemplate.delete(KEY_PREFIX + name);
         }
-    }
+    }*/
 }
