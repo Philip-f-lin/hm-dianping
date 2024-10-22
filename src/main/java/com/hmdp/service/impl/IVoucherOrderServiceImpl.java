@@ -13,12 +13,15 @@ import com.hmdp.utils.UserHolder;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.Collections;
 
 @Service
 public class IVoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, VoucherOrder> implements IVoucherOrderService {
@@ -35,7 +38,37 @@ public class IVoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vo
     @Resource
     private RedissonClient redissonClient;
 
+    private static final DefaultRedisScript<Long> SECKILL_SCRIPT;
+    static {
+        SECKILL_SCRIPT = new DefaultRedisScript<>();
+        SECKILL_SCRIPT.setLocation(new ClassPathResource("seckill.lua"));
+        SECKILL_SCRIPT.setResultType(Long.class);
+    }
+
     @Override
+    public Result seckillVoucher(Long voucherId) {
+        // 取得使用者
+        Long userId = UserHolder.getUser().getId();
+        // 1. 執行 lua 腳本
+        Long result = stringRedisTemplate.execute(
+                SECKILL_SCRIPT,
+                Collections.emptyList(),
+                voucherId.toString(), userId.toString()
+        );
+        // 2. 判斷結果是否為 0
+        int r = result.intValue();
+        if (r != 0){
+            // 2.1. 不為 0，代表沒有購買資格
+            return Result.fail(r == 1 ? "庫存不足" : "不能重複下單");
+        }
+        // 2.2. 為 0，有購買資格，把下單資訊保存到阻塞隊列中
+        long orderId = redisIdWorker.nextId("order");
+        // TODO 保存阻塞隊列
+        // 3. 返回訂單 id
+        return Result.ok(orderId);
+    }
+
+    /*@Override
     public Result seckillVoucher(Long voucherId) {
         // 1. 查詢優惠券
         SeckillVoucher voucher = seckillVoucherService.getById(voucherId);
@@ -72,7 +105,7 @@ public class IVoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vo
             // 釋放鎖
             lock.unlock();
         }
-    }
+    }*/
 
     @Transactional
     public Result createVoucherOrder(Long voucherId) {
