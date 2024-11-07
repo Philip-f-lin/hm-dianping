@@ -44,6 +44,12 @@ public class Blog implements Serializable {
     private String name;
 
     /**
+     * 是否按過讚
+     */
+    @TableField(exist = false)
+    private Boolean isLike;
+
+    /**
      * 標題
      */
     private String title;
