@@ -65,4 +65,16 @@ public class BlogController {
     public Result queryBlogLikes(@PathVariable("id") Long id){
         return blogService.queryBlogLikes(id);
     }
+
+    @GetMapping("/of/user")
+    public Result queryBlogByUserId(
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam("id") Long id) {
+        // 根據使用者查詢
+        Page<Blog> page = blogService.query()
+                .eq("user_id", id).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        // 取得目前頁數據
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+    }
 }
